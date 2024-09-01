@@ -1,12 +1,13 @@
-package main
+package internal
 
 import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"slices"
 	"strings"
 
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
 )
@@ -15,25 +16,11 @@ const (
 	user = "me"
 )
 
-var (
-	scopes []string = []string{
-		gmail.MailGoogleComScope,
-		gmail.GmailAddonsCurrentMessageReadonlyScope,
-		gmail.GmailAddonsCurrentMessageMetadataScope,
-	}
-)
-
 type MessageService struct {
 	srv *gmail.Service
 }
 
-func NewMessageService(credentials []byte) *MessageService {
-	config, err := google.ConfigFromJSON(credentials, scopes...)
-	if err != nil {
-		log.Fatalf("Unable to parse client secret file to config: %v", err)
-	}
-	client := getClient(config)
-
+func NewMessageService(client *http.Client) *MessageService {
 	srv, err := gmail.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
 		log.Fatalf("Unable to retrieve Gmail client: %v", err)
@@ -43,7 +30,7 @@ func NewMessageService(credentials []byte) *MessageService {
 	}
 }
 
-func (s *MessageService) GetCountBySender() (map[string]int, error) {
+func (s *MessageService) GetCountBySender() ([]KVPair, error) {
 	req := s.srv.Users.Messages.
 		List(user).
 		MaxResults(500)
@@ -65,7 +52,7 @@ func (s *MessageService) GetCountBySender() (map[string]int, error) {
 
 		senders[domain] += 1
 	}
-	return senders, nil
+	return sort(senders), nil
 }
 
 func getSenderFromHeader(message *gmail.Message) string {
@@ -76,3 +63,33 @@ func getSenderFromHeader(message *gmail.Message) string {
 	}
 	return ""
 }
+
+type KVPair struct {
+	Key   string
+	Value int
+}
+
+func sort(senders map[string]int) []KVPair {
+	sl := make([]KVPair, 0, len(senders))
+
+	for k, v := range senders {
+		sl = append(sl, KVPair{k, v})
+	}
+
+	slices.SortFunc(sl, func(a, b KVPair) int {
+		switch {
+		case a.Value > b.Value:
+			return -1
+		case a.Value < b.Value:
+			return 1
+		default:
+			return 0
+		}
+	})
+
+	return sl
+}
+
+func (kv KVPair) String() string {
+	return fmt.Sprintf("%s: %d", kv.Key, kv.Value)
+	}

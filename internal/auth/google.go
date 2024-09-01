@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"context"
@@ -9,6 +9,16 @@ import (
 	"os"
 
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/gmail/v1"
+)
+
+var (
+	scopes []string = []string{
+		gmail.MailGoogleComScope,
+		gmail.GmailAddonsCurrentMessageReadonlyScope,
+		gmail.GmailAddonsCurrentMessageMetadataScope,
+	}
 )
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -80,4 +90,12 @@ func saveToken(path string, token *oauth2.Token) {
 	}
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)
+}
+
+func NewHTTPClient(credentials []byte) (*http.Client, error) {
+	config, err := google.ConfigFromJSON(credentials, scopes...)
+	if err != nil {
+		return nil, fmt.Errorf("failed creating default HTTP client: %w", err)
+	}
+	return getClient(config), nil
 }

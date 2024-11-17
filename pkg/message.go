@@ -11,14 +11,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-type content struct {
-	ID, Subject, Snippet string
-}
-
-func (c content) String() string {
-	return fmt.Sprintf("%s: the subject of this message is \"%s\" and the snippet is \"%s\"", c.ID, c.Subject, c.Snippet)
-}
-
 const (
 	user       = "me"
 	query      = "is:unread has:nouserlabels"
@@ -29,17 +21,17 @@ type MessageService struct {
 	srv *gmail.Service
 }
 
-func NewMessageService(client *http.Client) *MessageService {
+func NewMessageService(client *http.Client) (*MessageService, error) {
 	srv, err := gmail.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
-		log.Fatalf("Unable to retrieve Gmail client: %v", err)
+		return nil, fmt.Errorf("failed to create gmail service: %w", err)
 	}
 	return &MessageService{
 		srv: srv,
-	}
+	}, nil
 }
 
-func (s *MessageService) GetContent(ctx context.Context) ([]content, error) {
+func (s *MessageService) GetContent(ctx context.Context) ([]Content, error) {
 	req := s.srv.Users.Messages.
 		List(user).
 		Q(query).
@@ -54,7 +46,7 @@ func (s *MessageService) GetContent(ctx context.Context) ([]content, error) {
 	var wg sync.WaitGroup
 	wg.Add(len(res.Messages))
 
-	contents := make([]content, len(res.Messages))
+	contents := make([]Content, len(res.Messages))
 	for i, rawMsg := range res.Messages {
 		go func() {
 			defer wg.Done()
@@ -63,7 +55,7 @@ func (s *MessageService) GetContent(ctx context.Context) ([]content, error) {
 				log.Printf("failed to fetch message id [%s]: %v\n", rawMsg.Id, err)
 				return
 			}
-			contents[i] = content{msg.Id, getSubject(msg), getSnippet(msg)}
+			contents[i] = Content{msg.Id, getSubject(msg), getSnippet(msg)}
 		}()
 	}
 	wg.Wait()
@@ -92,3 +84,12 @@ func getSnippet(msg *gmail.Message) string {
 
 	return msg.Snippet
 }
+
+type Content struct {
+	ID, Subject, Snippet string
+}
+
+func (c Content) String() string {
+	return fmt.Sprintf("%s: the subject of this message is \"%s\" and the snippet is \"%s\"", c.ID, c.Subject, c.Snippet)
+}
+

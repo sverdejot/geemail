@@ -35,5 +35,6 @@ func main() {
 	for _, c := range contents {
 		fmt.Println(c)
 	}
+
 	fmt.Println("took: ", t1)
 }

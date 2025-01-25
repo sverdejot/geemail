@@ -1,39 +1,39 @@
 package auth
 
 import (
-	_ "embed"
-	"log"
-	"net/http"
+    _ "embed"
+    "log"
+    "net/http"
 )
 
 //go:embed static/callback.html
 var callbackPage []byte
 
 func callback() string {
-	var code string
+    var code string
 
-	srv := &http.Server{
-		Addr: ":80",
-	}
-	
-	mux := http.NewServeMux()
+    srv := &http.Server{
+        Addr: ":80",
+    }
 
-	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			go srv.Shutdown(r.Context())
-		}()
+    mux := http.NewServeMux()
 
-		code = r.URL.Query().Get("code")
-		w.WriteHeader(http.StatusOK)
-		w.Write(callbackPage)
-	})
+    fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        defer func() {
+            go srv.Shutdown(r.Context())
+        }()
 
-	mux.Handle("/callback", fn)
-	srv.Handler = mux
+        code = r.URL.Query().Get("code")
+        w.WriteHeader(http.StatusOK)
+        w.Write(callbackPage)
+    })
 
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("failed listening for callback requests: %v", err)
-	}
+    mux.Handle("/callback", fn)
+    srv.Handler = mux
 
-	return code
+    if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+        log.Fatalf("failed listening for callback requests: %v", err)
+    }
+
+    return code
 }

@@ -1,69 +1,70 @@
 package auth
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"log"
-	"os"
-	"os/exec"
-	"runtime"
+    "context"
+    "encoding/json"
+    "fmt"
+    "log"
+    "os"
+    "os/exec"
+    "runtime"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+    "golang.org/x/oauth2"
+    "golang.org/x/oauth2/google"
 )
 
 const (
-	tokenFile = "token.json"
+    tokenFile = "config/token.json"
 )
 
 func GenerateToken(credentials []byte) error {
-	config, err := google.ConfigFromJSON(credentials, scopes...)
-	if err != nil {
-		return fmt.Errorf("cannot read config file: %w", err)
-	}
+    config, err := google.ConfigFromJSON(credentials, scopes...)
+    if err != nil {
+        return fmt.Errorf("cannot read config file: %w", err)
+    }
 
-	tok, err := tokenFromFile(tokenFile)
-	if err != nil {
-		tok = getTokenFromWeb(config)
-		return saveToken(tokenFile, tok)
-	}
-	return nil
+    tok, err := tokenFromFile(tokenFile)
+    if err != nil {
+        tok = getTokenFromWeb(config)
+        return saveToken(tokenFile, tok)
+    }
+    return nil
 }
 
 func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+    authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 
-	open(authURL)
+    open(authURL)
 
-	authCode := callback()
-	tok, err := config.Exchange(context.TODO(), authCode)
-	if err != nil {
-		log.Fatalf("Unable to retrieve token from web: %v", err)
-	}
+    authCode := callback()
+    tok, err := config.Exchange(context.TODO(), authCode)
+    if err != nil {
+        log.Fatalf("Unable to retrieve token from web: %v", err)
+    }
 
-	return tok
+    return tok
 }
 
-func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	tok := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(tok)
-	return tok, err
+func tokenFromFile(file string) (token *oauth2.Token, err error) {
+    if envFile := os.Getenv("TOKEN_FILE"); envFile != "" {
+        file = envFile
+    }
+    f, err := os.Open(file)
+    if err != nil {
+        return nil, err
+    }
+    defer f.Close()
+    return token, json.NewDecoder(f).Decode(token)
 }
 
 func saveToken(path string, token *oauth2.Token) error {
-	fmt.Printf("Saving credential file to: %s\n", path)
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return fmt.Errorf("Unable to cache oauth token: %v", err)
-	}
-	defer f.Close()
-	return json.NewEncoder(f).Encode(token)
+    fmt.Printf("Saving credential file to: %s\n", path)
+    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+    if err != nil {
+        return fmt.Errorf("Unable to cache oauth token: %v", err)
+    }
+    defer f.Close()
+    return json.NewEncoder(f).Encode(token)
 }
 
 func open(url string) error {

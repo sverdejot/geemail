@@ -1,4 +1,14 @@
 services:
+  classifier:
+    build:
+      dockerfile: build/classifier
+      context: .
+  volumes:
+    - ./config:/config 
+  depends_on:
+    ollama:
+      condition: service_healthy
+
   ollama:
     image: ollama/ollama:latest
     ports:

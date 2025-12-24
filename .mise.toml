@@ -1,0 +1,12 @@
+[tools]
+go = "latest"
+golangci-lint = "latest"
+
+[settings]
+experimental = true
+auto_install = true
+
+[tasks]
+lint = ["golangci-lint run ./...", "buf lint"]
+deps = ["go mod tidy", "go mod vendor"]
+token = ["go run cmd/generate-token/main.go"]

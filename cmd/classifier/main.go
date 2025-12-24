@@ -1,14 +1,14 @@
 package main
 
 import (
-    "context"
-    "fmt"
-    "log"
-    "os"
-    "time"
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
 
-    geemail "github.com/sverdejot/geemail/pkg"
-    "github.com/sverdejot/geemail/pkg/auth"
+	"github.com/sverdejot/geemail/internal"
+	"github.com/sverdejot/geemail/internal/auth"
 )
 
 func main() {
@@ -39,9 +39,7 @@ func main() {
         log.Fatalf("Unable to retrieve latest messages: %v", err)
     }
 
-    for _, c := range contents {
-        fmt.Println(c)
-    }
+    fmt.Println(geemail.FormatCount(contents))
 
     fmt.Println("took: ", t1)
 }

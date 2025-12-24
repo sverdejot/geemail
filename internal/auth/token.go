@@ -45,7 +45,7 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
     return tok
 }
 
-func tokenFromFile(file string) (token *oauth2.Token, err error) {
+func tokenFromFile(file string) (*oauth2.Token, error) {
     if envFile := os.Getenv("TOKEN_FILE"); envFile != "" {
         file = envFile
     }
@@ -54,7 +54,11 @@ func tokenFromFile(file string) (token *oauth2.Token, err error) {
         return nil, err
     }
     defer f.Close()
-    return token, json.NewDecoder(f).Decode(token)
+    var token oauth2.Token
+    if err := json.NewDecoder(f).Decode(&token); err != nil {
+        return nil, err
+    }
+    return &token, nil
 }
 
 func saveToken(path string, token *oauth2.Token) error {

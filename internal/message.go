@@ -1,20 +1,20 @@
 package geemail
 
 import (
-    "context"
-    "fmt"
-    "log"
-    "net/http"
-    "sync"
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"sync"
 
-    "google.golang.org/api/gmail/v1"
-    "google.golang.org/api/option"
+	"google.golang.org/api/gmail/v1"
+	"google.golang.org/api/option"
 )
 
 const (
     user       = "me"
     query      = "is:unread has:nouserlabels"
-    maxResults = 20
+    maxResults = 100
 )
 
 type MessageService struct {
@@ -55,12 +55,26 @@ func (s *MessageService) GetContent(ctx context.Context) ([]Content, error) {
                 log.Printf("failed to fetch message id [%s]: %v\n", rawMsg.Id, err)
                 return
             }
-            contents[i] = Content{msg.Id, getSubject(msg), getSnippet(msg)}
+            contents[i] = Content{msg.Id, getSubject(msg), getSnippet(msg), getSender(msg)}
         }()
     }
     wg.Wait()
 
     return contents, nil
+}
+
+func getSender(message *gmail.Message) string {
+    if message == nil || message.Payload == nil {
+        return ""
+    }
+
+    for _, h := range message.Payload.Headers {
+        if h.Name == "From" {
+            return h.Value
+        }
+    }
+
+    return ""
 }
 
 func getSubject(message *gmail.Message) string {
@@ -86,9 +100,32 @@ func getSnippet(msg *gmail.Message) string {
 }
 
 type Content struct {
-    ID, Subject, Snippet string
+    ID, Subject, Snippet, From string
 }
 
 func (c Content) String() string {
-    return fmt.Sprintf("%s: the subject of this message is \"%s\" and the snippet is \"%s\"", c.ID, c.Subject, c.Snippet)
+    return fmt.Sprintf("%s [%s]: the subject of this message is \"%s\" and the snippet is \"%s\"", c.From, c.ID, c.Subject, c.Snippet)
+}
+
+func countBySender(msgs []Content) map[string]int {
+    counts := make(map[string]int)
+
+    for _, msg := range msgs {
+        if _, ok := counts[msg.From]; ok {
+            counts[msg.From] += 1
+            continue
+        }
+        counts[msg.From] = 1
+    }
+
+    return counts
+}
+
+func FormatCount(c []Content) string {
+    cm := countBySender(c)
+    var s string
+    for k, v := range cm {
+        s += fmt.Sprintf("%s: %d\n", k, v)
+    }
+    return s
 }

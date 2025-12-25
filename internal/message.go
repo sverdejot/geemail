@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/mail"
 	"sync"
 
 	"google.golang.org/api/gmail/v1"
@@ -14,7 +15,7 @@ import (
 const (
     user       = "me"
     query      = "is:unread has:nouserlabels"
-    maxResults = 100
+    maxResults = 50
 )
 
 type MessageService struct {
@@ -70,7 +71,11 @@ func getSender(message *gmail.Message) string {
 
     for _, h := range message.Payload.Headers {
         if h.Name == "From" {
-            return h.Value
+            addr, err := mail.ParseAddress(h.Value)
+            if err != nil {
+                return ""
+            }
+            return addr.Address
         }
     }
 

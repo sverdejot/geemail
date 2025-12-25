@@ -3,3 +3,4 @@ credentials.json
 geemail
 .DS_Store
 config
+vendor/

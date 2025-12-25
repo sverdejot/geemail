@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	geemail "github.com/sverdejot/geemail/internal"
-	"github.com/sverdejot/geemail/internal/auth"
+	"github.com/sverdejot/geemail/internal/core/auth"
+	"github.com/sverdejot/geemail/internal/core"
 )
 
 var summaryCmd = &cobra.Command{
@@ -28,7 +28,7 @@ var summaryCmd = &cobra.Command{
             return fmt.Errorf("Unable to create default HTTP client: %v", err)
         }
 
-        service, err := geemail.NewMessageService(client)
+        service, err := core.NewMessageService(client)
         if err != nil {
             return fmt.Errorf("Unable to create message service: %v", err)
         }
@@ -41,7 +41,7 @@ var summaryCmd = &cobra.Command{
             return fmt.Errorf("Unable to retrieve latest messages: %v", err)
         }
 
-        fmt.Println(geemail.FormatCount(contents))
+        fmt.Println(core.FormatCount(contents))
         fmt.Println("took: ", t1)
 
         return nil

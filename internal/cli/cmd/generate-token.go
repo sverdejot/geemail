@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/sverdejot/geemail/internal/auth"
+	"github.com/sverdejot/geemail/internal/core/auth"
 )
 
 var generateTokenCmd = &cobra.Command{

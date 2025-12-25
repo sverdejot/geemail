@@ -1,4 +1,4 @@
-package geemail
+package core
 
 import (
 	"context"

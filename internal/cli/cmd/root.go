@@ -8,9 +8,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-    Use:   "geemail",
-    Short: "Fast, bulk Gmail inbox cleanup",
-    Long:  "A TUI tool to aggressively reduce unread Gmail messages",
+	Use:   "geemail",
+	Short: "Fast, bulk Gmail inbox cleanup",
+	Long:  "A TUI tool to aggressively reduce unread Gmail messages",
 }
 
 func Execute() {
@@ -22,6 +22,6 @@ func Execute() {
 
 func init() {
 	rootCmd.AddCommand(unsubscribeCmd)
-    rootCmd.AddCommand(generateTokenCmd)
-    rootCmd.AddCommand(summaryCmd)
+	rootCmd.AddCommand(generateTokenCmd)
+	rootCmd.AddCommand(summaryCmd)
 }

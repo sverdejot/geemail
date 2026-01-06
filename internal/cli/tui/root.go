@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/sverdejot/geemail/internal/core"
 )
 
@@ -25,9 +26,10 @@ type rootModel struct {
 	inc      chan struct{}
 	width    int
 	height   int
+    dryRun   bool
 }
 
-func NewRoot(ctx context.Context, svc *core.MailService) (*rootModel, error) {
+func NewRoot(ctx context.Context, svc *core.MailService, dryRun bool) (*rootModel, error) {
 	total, err := svc.GetTotalUnreads(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get total unread messages: %w", err)
@@ -45,6 +47,7 @@ func NewRoot(ctx context.Context, svc *core.MailService) (*rootModel, error) {
 		svc:      svc,
 		mails:    mails,
 		inc:      inc,
+        dryRun:   dryRun,
 	}, nil
 }
 
@@ -159,7 +162,7 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *rootModel) View() string {
 	if m.state == loading {
-		return m.progress.View()
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.progress.View())
 	}
 	return m.list.View()
 }

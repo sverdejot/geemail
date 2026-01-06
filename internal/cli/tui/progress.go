@@ -5,10 +5,13 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 const (
 	maxWidth = 80
+
+    helpStringTemplate = "You have approximately (%d) mails alongs its submessages. Fetching all of'em to look for mailing list"
 )
 
 type progressMsg int64
@@ -74,6 +77,10 @@ func (m *mailLoadingProgress) progressCmd() tea.Cmd {
 }
 
 func (m *mailLoadingProgress) View() string {
-	return "\n" +
-		m.progress.View() + fmt.Sprintf(" (%d of %d)", m.current, m.total) + "\n\n"
+    return lipgloss.JoinVertical(
+        lipgloss.Center, 
+        titleText + "\n", 
+        fmt.Sprintf("(%d) ", m.current) + m.progress.View() + "\n",
+        fmt.Sprintf(helpStringTemplate, m.total),
+    )
 }

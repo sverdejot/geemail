@@ -1,7 +1,7 @@
 package main
 
-import "github.com/sverdejot/geemail/internal/cli/cmd"
+import "github.com/sverdejot/geemail/internal/cli"
 
 func main() {
-	cmd.Execute()
+	cli.Execute()
 }

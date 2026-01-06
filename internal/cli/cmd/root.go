@@ -22,6 +22,4 @@ func Execute() {
 
 func init() {
 	rootCmd.AddCommand(unsubscribeCmd)
-	rootCmd.AddCommand(generateTokenCmd)
-	rootCmd.AddCommand(summaryCmd)
 }

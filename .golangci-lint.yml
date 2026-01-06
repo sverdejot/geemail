@@ -1,0 +1,34 @@
+run:
+  timeout: 3m
+  fix: true
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  uniq-by-line: true
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - misspell
+    - errorlint
+    - wrapcheck
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - golines
+
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/sverdejot/grpc-streams)

@@ -26,8 +26,8 @@ var (
 
 const (
 	credentialsEnvKey = "GEEMAIL_API_CREDENTIALS"
-	tokenFile = "geemail.json"
-    tokenFileDir = ".config"
+	tokenFile         = "geemail.json"
+	tokenFileDir      = ".config"
 )
 
 func NewHTTPClient(ctx context.Context) (*http.Client, error) {
@@ -52,28 +52,30 @@ func NewHTTPClient(ctx context.Context) (*http.Client, error) {
 func getTokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 
-	open(authURL)
+    if err := open(authURL); err != nil {
+        log.Fatalf("cannot open URL to redeem token: %v", err)
+    }
 
 	authCode := callback()
 	tok, err := config.Exchange(ctx, authCode)
 	if err != nil {
-		log.Fatalf("Unable to retrieve token from web: %v", err)
+		log.Fatalf("unable to retrieve token from web: %v", err)
 	}
 
 	return tok
 }
 
 func tokenFromEnv() (*oauth2.Token, error) {
-    home, err := os.UserHomeDir()
-    if err != nil {
-        return nil, fmt.Errorf("cannot get user home dir: %w", err)
-    }
-    fpath := path.Join(home, tokenFileDir, tokenFile)
-    f, err := os.OpenFile(fpath, os.O_RDONLY, 0400)
-    if err != nil {
-        return nil, fmt.Errorf("cannot open file: %w", err)
-    }
-    defer f.Close()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("cannot get user home dir: %w", err)
+	}
+	fpath := path.Join(home, tokenFileDir, tokenFile)
+	f, err := os.OpenFile(fpath, os.O_RDONLY, 0400)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open file: %w", err)
+	}
+    defer f.Close() //nolint:errcheck
 	var token oauth2.Token
 	if err := json.NewDecoder(f).Decode(&token); err != nil {
 		return nil, err
@@ -82,16 +84,16 @@ func tokenFromEnv() (*oauth2.Token, error) {
 }
 
 func saveToken(token *oauth2.Token) error {
-    home, err := os.UserHomeDir()
-    if err != nil {
-        return fmt.Errorf("cannot get user home dir: %w", err)
-    }
-    fpath := path.Join(home, tokenFileDir, tokenFile)
-    f, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-    if err != nil {
-        return fmt.Errorf("cannot open file: %w", err)
-    }
-    defer f.Close()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("cannot get user home dir: %w", err)
+	}
+	fpath := path.Join(home, tokenFileDir, tokenFile)
+	f, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("cannot open file: %w", err)
+	}
+    defer f.Close() //nolint:errcheck //nolint:errcheck
 	return json.NewEncoder(f).Encode(token)
 }
 

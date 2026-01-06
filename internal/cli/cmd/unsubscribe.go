@@ -17,19 +17,19 @@ var unsubscribeCmd = &cobra.Command{
 		ctx := cmd.Context()
 		client, err := token.NewHTTPClient(ctx)
 		if err != nil {
-			return fmt.Errorf("Unable to create default HTTP client: %v", err)
+			return fmt.Errorf("unable to create default HTTP client: %v", err)
 		}
 
 		service, err := core.NewMessageService(ctx, client)
 		if err != nil {
-			return fmt.Errorf("Unable to create message service: %v", err)
+			return fmt.Errorf("unable to create message service: %v", err)
 		}
-        m, err := tui.NewRoot(ctx, service)
-        if err != nil {
-            return err
-        }
+		m, err := tui.NewRoot(ctx, service)
+		if err != nil {
+			return err
+		}
 		if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
-			return fmt.Errorf("Error running program: %w", err)
+			return fmt.Errorf("error running program: %w", err)
 		}
 		return nil
 	},

@@ -108,7 +108,7 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state == loading {
 			rawMailList := core.RawMailList(m.mails)
 			mailingLists := core.GetMailingList(rawMailList)
-			
+
 			m.list = NewModel(mailingLists)
 			if m.width > 0 && m.height > 0 {
 				updatedModel, sizeCmd := m.list.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
@@ -118,7 +118,7 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, sizeCmd)
 			}
 			m.state = ready
-			
+
 			cmd := m.list.Init()
 			cmds = append(cmds, cmd)
 			return m, tea.Batch(cmds...)
@@ -163,4 +163,3 @@ func (m *rootModel) View() string {
 	}
 	return m.list.View()
 }
-

@@ -8,7 +8,7 @@ import (
 )
 
 type mailList struct {
-	list     list.Model
+	list list.Model
 }
 
 func NewModel(mails []core.MailingList) mailList {

@@ -28,8 +28,8 @@ const (
 	// max query results, set to the API maximum, default is 100
 	maxResults = 500
 
-	// usage limit is 15_000 u/min per user, let's leave some room
-	apiQuotaLimitPerMinute = 14_900
+	// usage limit is 15_000 u/min per user
+	apiQuotaUsagePerSec = 15_000 / 60
 
 	// quota consumption per operation
 	messagesListQuotaUsage = 5
@@ -48,7 +48,7 @@ func NewMessageService(ctx context.Context, client *http.Client) (*MailService, 
 	}
 
 	lim := rate.NewLimiter(
-		rate.Limit(250), 250,
+        rate.Limit(apiQuotaUsagePerSec), apiQuotaUsagePerSec,
 	)
 
 	return &MailService{
@@ -62,7 +62,7 @@ func (s *MailService) StreamUnreadMessages(ctx context.Context) (chan RawMail, e
 		return nil, err
 	}
 
-    ids, err := s.GetUnreadMessageIDs(ctx)
+	ids, err := s.GetUnreadMessageIDs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch messages for user %s: %w", user, err)
 	}

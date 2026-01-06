@@ -7,6 +7,5 @@ experimental = true
 auto_install = true
 
 [tasks]
-lint = ["golangci-lint run ./...", "buf lint"]
+lint = ["golangci-lint run ./..."]
 deps = ["go mod tidy", "go mod vendor"]
-token = ["go run cmd/generate-token/main.go"]

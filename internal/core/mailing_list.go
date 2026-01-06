@@ -1,6 +1,13 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
+
+const (
+    unsubscribeHeaderKey = "list-unsubscribe"
+)
 
 type MailingList struct {
 	From         string
@@ -26,11 +33,18 @@ func GetMailingList(l RawMailList) []MailingList {
 		}
 		total = 0
 	}
+    sortAscendingByTotalUnreads(lists)
 	return lists
 }
 
+func sortAscendingByTotalUnreads(l []MailingList) {
+    sort.Slice(l, func(i, j int) bool {
+        return l[i].TotalUnreads > l[j].TotalUnreads
+    })
+}
+
 func isMailingList(rm RawMail) bool {
-	_, ok := rm.Headers["list-unsubscribe"]
+	_, ok := rm.Headers[unsubscribeHeaderKey]
 	return ok
 }
 

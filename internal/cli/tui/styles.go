@@ -23,10 +23,4 @@ var (
 				Dark:  "#04B575",
 			},
 		)
-
-    errorMessageStyle = lipgloss.
-        NewStyle().
-        Foreground(
-            lipgloss.Color("red"),
-        )
 )

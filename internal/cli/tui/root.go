@@ -24,7 +24,7 @@ type rootModel struct {
 	ctx                 context.Context
 	svc                 *gmail.MailService
 	mails               []inbox.RawMail
-	inc                 chan struct{}
+	mailStream          <-chan inbox.RawMail
 	width               int
 	height              int
 	dryRun              bool
@@ -38,10 +38,8 @@ func NewRoot(ctx context.Context, svc *gmail.MailService, dryRun bool) (*rootMod
 		return nil, fmt.Errorf("cannot get total unread messages: %w", err)
 	}
 
-	inc := make(chan struct{})
 	mails := make([]inbox.RawMail, 0)
-
-	pg := NewProgressModel(total, inc)
+	pg := NewProgressModel(total)
 
 	return &rootModel{
 		state:    loading,
@@ -49,7 +47,6 @@ func NewRoot(ctx context.Context, svc *gmail.MailService, dryRun bool) (*rootMod
 		ctx:      ctx,
 		svc:      svc,
 		mails:    mails,
-		inc:      inc,
 		dryRun:   dryRun,
 	}, nil
 }
@@ -65,22 +62,21 @@ func (m *rootModel) startLoading() tea.Cmd {
 	return func() tea.Msg {
 		stream, err := m.svc.StreamUnreadMessages(m.ctx)
 		if err != nil {
-			return tea.Quit()
+			return mailStreamErrorMsg{err: err}
 		}
 
-		go func() {
-			for mail := range stream {
-				m.mails = append(m.mails, mail)
-				select {
-				case m.inc <- struct{}{}:
-				case <-m.ctx.Done():
-					return
-				}
-			}
-			close(m.inc)
-		}()
+		return mailStreamReadyMsg{stream: stream}
+	}
+}
 
-		return nil
+func (m *rootModel) readNextMail() tea.Cmd {
+	return func() tea.Msg {
+		mail, ok := <-m.mailStream
+		if !ok {
+			return mailStreamCompleteMsg{}
+		}
+
+		return mailReceivedMsg{mail: mail}
 	}
 }
 
@@ -102,6 +98,32 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 		return m, tea.Batch(cmds...)
+
+	case mailStreamReadyMsg:
+		if m.state == loading {
+			// Store the stream and start reading from it
+			m.mailStream = msg.stream
+			return m, m.readNextMail()
+		}
+
+	case mailReceivedMsg:
+		if m.state == loading {
+			m.mails = append(m.mails, msg.mail)
+
+			_, progressCmd := m.progress.Update(msg)
+
+			return m, tea.Batch(progressCmd, m.readNextMail())
+		}
+
+	case mailStreamCompleteMsg:
+		if m.state == loading {
+			// Transform to endMsg for existing logic
+			return m, func() tea.Msg { return endMsg{} }
+		}
+
+	case mailStreamErrorMsg:
+		// Handle stream error (could show error message or quit)
+		return m, tea.Quit
 
 	case progressMsg:
 		if m.state == loading {

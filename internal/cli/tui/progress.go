@@ -20,19 +20,18 @@ type endMsg struct{}
 type mailLoadingProgress struct {
 	progress       progress.Model
 	total, current int64
-	ch             chan struct{}
 }
 
-func NewProgressModel(total int64, ch chan struct{}) *mailLoadingProgress {
+func NewProgressModel(total int64) *mailLoadingProgress {
 	return &mailLoadingProgress{
 		progress: progress.New(progress.WithDefaultGradient()),
 		total:    total,
-		ch:       ch,
+		current:  0,
 	}
 }
 
 func (m *mailLoadingProgress) Init() tea.Cmd {
-	return m.progressCmd()
+	return nil
 }
 
 func (m *mailLoadingProgress) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -47,14 +46,10 @@ func (m *mailLoadingProgress) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case progressMsg:
-		m.current += 1
+	case mailReceivedMsg:
+        m.current++
 		cmd := m.progress.SetPercent(float64(m.current) / float64(m.total))
-
-		if m.progress.Percent() >= 1.0 {
-			return m, m.progressCmd()
-		}
-		return m, tea.Batch(m.progressCmd(), cmd)
+		return m, cmd
 
 	case progress.FrameMsg:
 		progressModel, cmd := m.progress.Update(msg)
@@ -63,16 +58,6 @@ func (m *mailLoadingProgress) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	default:
 		return m, nil
-	}
-}
-
-func (m *mailLoadingProgress) progressCmd() tea.Cmd {
-	return func() tea.Msg {
-		_, ok := <-m.ch
-		if !ok {
-			return endMsg{}
-		}
-		return progressMsg(1)
 	}
 }
 

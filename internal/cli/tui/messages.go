@@ -40,6 +40,16 @@ type trashRequestMsg struct {
 	idx  int
 }
 
+type markReadRequestMsg struct {
+	mail inbox.MailingList
+	idx  int
+}
+
+type markSpamRequestMsg struct {
+	mail inbox.MailingList
+	idx  int
+}
+
 // Result messages - emitted after async operations complete
 type unsubscribeCompleteMsg struct {
 	mail inbox.MailingList
@@ -60,6 +70,18 @@ type archiveCompleteMsg struct {
 }
 
 type trashCompleteMsg struct {
+	mail inbox.MailingList
+	idx  int
+	err  error
+}
+
+type markReadCompleteMsg struct {
+	mail inbox.MailingList
+	idx  int
+	err  error
+}
+
+type markSpamCompleteMsg struct {
 	mail inbox.MailingList
 	idx  int
 	err  error

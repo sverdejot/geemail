@@ -24,8 +24,10 @@ const (
 	// non-classified emails nor reads ones, reasoning is that read messages
 	// may be interesting for the user
 	query      = "is:unread has:nouserlabels"
-	inboxLabel = "INBOX"
-    thrashLabel = "THRASH"
+	inboxLabel  = "INBOX"
+	trashLabel  = "TRASH"
+	unreadLabel = "UNREAD"
+	spamLabel   = "SPAM"
 
 	// max query results, set to the API maximum, default is 100
 	maxResults = 500
@@ -234,13 +236,41 @@ func (s *MailService) BulkArchive(ctx context.Context, ids []string) error {
 }
 
 func (s *MailService) BulkTrash(ctx context.Context, ids []string) error {
-    if err := s.lim.WaitN(ctx, batchModifyQuotausage); err != nil {
-        return fmt.Errorf("error moving %d mails to thrash: %w", len(ids), err)
-    }
+	if err := s.lim.WaitN(ctx, batchModifyQuotausage); err != nil {
+		return fmt.Errorf("error moving %d mails to trash: %w", len(ids), err)
+	}
 	req := s.srv.Users.Messages.
 		BatchModify(user, &gmail.BatchModifyMessagesRequest{
 			Ids:         ids,
-			AddLabelIds: []string{thrashLabel},
+			AddLabelIds: []string{trashLabel},
+		}).
+		Context(ctx)
+
+	return req.Do()
+}
+
+func (s *MailService) BulkMarkRead(ctx context.Context, ids []string) error {
+	if err := s.lim.WaitN(ctx, batchModifyQuotausage); err != nil {
+		return fmt.Errorf("error marking %d mails as read: %w", len(ids), err)
+	}
+	req := s.srv.Users.Messages.
+		BatchModify(user, &gmail.BatchModifyMessagesRequest{
+			Ids:            ids,
+			RemoveLabelIds: []string{unreadLabel},
+		}).
+		Context(ctx)
+
+	return req.Do()
+}
+
+func (s *MailService) BulkMarkSpam(ctx context.Context, ids []string) error {
+	if err := s.lim.WaitN(ctx, batchModifyQuotausage); err != nil {
+		return fmt.Errorf("error marking %d mails as spam: %w", len(ids), err)
+	}
+	req := s.srv.Users.Messages.
+		BatchModify(user, &gmail.BatchModifyMessagesRequest{
+			Ids:         ids,
+			AddLabelIds: []string{spamLabel},
 		}).
 		Context(ctx)
 

@@ -290,6 +290,70 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.list.RemoveItem(msg.idx)
 		return m, m.statusCmd(fmt.Sprintf("Trashed (%d) mails from %s", msg.mail.TotalUnreads, msg.mail.From))
 
+	case markReadRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would mark (%d) mails from %s as read", msg.mail.TotalUnreads, msg.mail.From))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "mark read"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkMarkRead(m.ctx, msg.mail.UnreadMessagesIDs)
+			return markReadCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case markReadCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.statusCmd(fmt.Sprintf("Error marking (%d) mails from %s as read. Please, try again later.", msg.mail.TotalUnreads, msg.mail.From))
+		}
+
+		m.list.list.RemoveItem(msg.idx)
+		return m, m.statusCmd(fmt.Sprintf("Marked (%d) mails from %s as read", msg.mail.TotalUnreads, msg.mail.From))
+
+	case markSpamRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would mark (%d) mails from %s as spam", msg.mail.TotalUnreads, msg.mail.From))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "mark spam"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkMarkSpam(m.ctx, msg.mail.UnreadMessagesIDs)
+			return markSpamCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case markSpamCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.statusCmd(fmt.Sprintf("Error marking (%d) mails from %s as spam. Please, try again later.", msg.mail.TotalUnreads, msg.mail.From))
+		}
+
+		m.list.list.RemoveItem(msg.idx)
+		return m, m.statusCmd(fmt.Sprintf("Marked (%d) mails from %s as spam", msg.mail.TotalUnreads, msg.mail.From))
+
 	case statusMsg:
 		updatedModel, cmd := m.list.Update(m.list.list.NewStatusMessage(msg.text))
 		if updatedList, ok := updatedModel.(mailList); ok {

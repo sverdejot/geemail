@@ -23,6 +23,16 @@ var (
 		key.WithHelp("t", "trash all mails from this sender"),
 	)
 
+	markRead = key.NewBinding(
+		key.WithKeys("r"),
+		key.WithHelp("r", "mark all mails as read"),
+	)
+
+	markSpam = key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "mark all mails as spam"),
+	)
+
 	toggleHelpMenu = key.NewBinding(
 		key.WithKeys("H"),
 		key.WithHelp("H", "toggle help"),

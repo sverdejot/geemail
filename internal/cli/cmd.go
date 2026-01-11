@@ -43,6 +43,7 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+    rootCmd.AddCommand(versionCmd)
 	rootCmd.Flags().Bool("dry-run", false, "Simulate all the actions without performing any change")
 
 	if err := rootCmd.Execute(); err != nil {

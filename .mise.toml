@@ -20,9 +20,11 @@ dist = "aws s3 cp dist/install.sh s3://${S3_BUCKET}/${DIST_FOLDER}/install.sh --
 tag = "echo v$(gitversion -config .gitversion.yml -showvariable MajorMinorPatch)"
 
 [tasks.check-tag]
-depends = ["tag"]
-run = "git tag $(mise r tag -q) 2>/dev/null || true"
+run = "git tag v$(gitversion -config .gitversion.yml -showvariable MajorMinorPatch) 2>/dev/null || true"
 
 [tasks.release]
 depends = ["check-tag"]
-run = "gh release view $(mise r tag -q) &>/dev/null || { git push --tags && goreleaser release --clean; }"
+run = """
+TAG="v$(gitversion -config .gitversion.yml -showvariable MajorMinorPatch)"
+gh release list --json tagName -q '.[].tagName' | grep -qx "$TAG" && echo "Release $TAG exists" || { git push --tags && goreleaser release --clean; }
+"""

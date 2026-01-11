@@ -46,7 +46,7 @@ func NewHTTPClient(ctx context.Context) (*http.Client, error) {
 			log.Fatalf("error saving token: %v\n", err)
 		}
 	}
-	return config.Client(context.Background(), tok), nil
+	return config.Client(ctx, tok), nil
 }
 
 func getTokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {

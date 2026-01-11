@@ -50,6 +50,69 @@ type markSpamRequestMsg struct {
 	idx  int
 }
 
+type inspectRequestMsg struct {
+	mail inbox.MailingList
+}
+
+type goBackMsg struct{}
+
+// Single mail intent messages - emitted by inspectModel when user takes action
+type singleDeleteRequestMsg struct {
+	mail inbox.RawMail
+	idx  int
+}
+
+type singleArchiveRequestMsg struct {
+	mail inbox.RawMail
+	idx  int
+}
+
+type singleTrashRequestMsg struct {
+	mail inbox.RawMail
+	idx  int
+}
+
+type singleMarkReadRequestMsg struct {
+	mail inbox.RawMail
+	idx  int
+}
+
+type singleMarkSpamRequestMsg struct {
+	mail inbox.RawMail
+	idx  int
+}
+
+// Single mail result messages
+type singleDeleteCompleteMsg struct {
+	mail inbox.RawMail
+	idx  int
+	err  error
+}
+
+type singleArchiveCompleteMsg struct {
+	mail inbox.RawMail
+	idx  int
+	err  error
+}
+
+type singleTrashCompleteMsg struct {
+	mail inbox.RawMail
+	idx  int
+	err  error
+}
+
+type singleMarkReadCompleteMsg struct {
+	mail inbox.RawMail
+	idx  int
+	err  error
+}
+
+type singleMarkSpamCompleteMsg struct {
+	mail inbox.RawMail
+	idx  int
+	err  error
+}
+
 // Result messages - emitted after async operations complete
 type unsubscribeCompleteMsg struct {
 	mail inbox.MailingList

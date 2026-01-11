@@ -31,6 +31,7 @@ func NewModel(mails []inbox.MailingList) mailList {
 			trashAll,
 			markRead,
 			markSpam,
+			inspect,
 		}
 	}
 	mailingList.AdditionalFullHelpKeys = func() []key.Binding {
@@ -41,6 +42,7 @@ func NewModel(mails []inbox.MailingList) mailList {
 			trashAll,
 			markRead,
 			markSpam,
+			inspect,
 			toggleHelpMenu,
 		}
 	}
@@ -83,6 +85,8 @@ func (m mailList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.handleMarkRead()...)
 		case key.Matches(msg, markSpam):
 			cmds = append(cmds, m.handleMarkSpam()...)
+		case key.Matches(msg, inspect):
+			cmds = append(cmds, m.handleInspect()...)
 		}
 	}
 
@@ -185,6 +189,19 @@ func (m *mailList) handleMarkSpam() []tea.Cmd {
 				mail: mail,
 				idx:  m.list.Index(),
 			}
+		},
+	}
+}
+
+func (m *mailList) handleInspect() []tea.Cmd {
+	mail, ok := m.getSelectedMail()
+	if !ok {
+		return nil
+	}
+
+	return []tea.Cmd{
+		func() tea.Msg {
+			return inspectRequestMsg{mail: mail}
 		},
 	}
 }

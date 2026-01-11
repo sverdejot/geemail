@@ -15,12 +15,14 @@ type state int
 const (
 	loading state = iota
 	ready
+	inspecting
 )
 
 type rootModel struct {
 	state               state
 	progress            *mailLoadingProgress
 	list                mailList
+	inspect             inspectModel
 	ctx                 context.Context
 	svc                 *gmail.MailService
 	mails               []inbox.RawMail
@@ -87,10 +89,17 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		if m.state == loading {
+		switch m.state {
+		case loading:
 			_, cmd := m.progress.Update(msg)
 			cmds = append(cmds, cmd)
-		} else {
+		case inspecting:
+			updatedModel, cmd := m.inspect.Update(msg)
+			if updatedInspect, ok := updatedModel.(inspectModel); ok {
+				m.inspect = updatedInspect
+			}
+			cmds = append(cmds, cmd)
+		default:
 			updatedModel, cmd := m.list.Update(msg)
 			if updatedList, ok := updatedModel.(mailList); ok {
 				m.list = updatedList
@@ -354,6 +363,196 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.list.RemoveItem(msg.idx)
 		return m, m.statusCmd(fmt.Sprintf("Marked (%d) mails from %s as spam", msg.mail.TotalUnreads, msg.mail.From))
 
+	case inspectRequestMsg:
+		// Filter mails by sender
+		senderMails := make([]inbox.RawMail, 0)
+		for _, mail := range m.mails {
+			if mail.From == msg.mail.From {
+				senderMails = append(senderMails, mail)
+			}
+		}
+
+		m.inspect = NewInspectModel(msg.mail.From, senderMails)
+		if m.width > 0 && m.height > 0 {
+			updatedModel, sizeCmd := m.inspect.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+			if updatedInspect, ok := updatedModel.(inspectModel); ok {
+				m.inspect = updatedInspect
+			}
+			cmds = append(cmds, sizeCmd)
+		}
+		m.state = inspecting
+		return m, tea.Batch(cmds...)
+
+	case goBackMsg:
+		m.state = ready
+		return m, nil
+
+	// Single mail operations (from inspect view)
+	case singleDeleteRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would delete mail: %s", msg.mail.Subject))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "delete"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkDelete(m.ctx, []string{msg.mail.ID})
+			return singleDeleteCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case singleDeleteCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.statusCmd(fmt.Sprintf("Error deleting mail: %s", msg.mail.Subject))
+		}
+
+		m.inspect.list.RemoveItem(msg.idx)
+		m.removeMail(msg.mail.ID)
+		return m, m.statusCmd(fmt.Sprintf("Deleted: %s", msg.mail.Subject))
+
+	case singleArchiveRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would archive mail: %s", msg.mail.Subject))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "archive"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkArchive(m.ctx, []string{msg.mail.ID})
+			return singleArchiveCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case singleArchiveCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.statusCmd(fmt.Sprintf("Error archiving mail: %s", msg.mail.Subject))
+		}
+
+		m.inspect.list.RemoveItem(msg.idx)
+		m.removeMail(msg.mail.ID)
+		return m, m.statusCmd(fmt.Sprintf("Archived: %s", msg.mail.Subject))
+
+	case singleTrashRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would trash mail: %s", msg.mail.Subject))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "trash"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkTrash(m.ctx, []string{msg.mail.ID})
+			return singleTrashCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case singleTrashCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.statusCmd(fmt.Sprintf("Error trashing mail: %s", msg.mail.Subject))
+		}
+
+		m.inspect.list.RemoveItem(msg.idx)
+		m.removeMail(msg.mail.ID)
+		return m, m.statusCmd(fmt.Sprintf("Trashed: %s", msg.mail.Subject))
+
+	case singleMarkReadRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would mark as read: %s", msg.mail.Subject))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "mark read"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkMarkRead(m.ctx, []string{msg.mail.ID})
+			return singleMarkReadCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case singleMarkReadCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.statusCmd(fmt.Sprintf("Error marking as read: %s", msg.mail.Subject))
+		}
+
+		m.inspect.list.RemoveItem(msg.idx)
+		m.removeMail(msg.mail.ID)
+		return m, m.statusCmd(fmt.Sprintf("Marked as read: %s", msg.mail.Subject))
+
+	case singleMarkSpamRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would mark as spam: %s", msg.mail.Subject))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "mark spam"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkMarkSpam(m.ctx, []string{msg.mail.ID})
+			return singleMarkSpamCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case singleMarkSpamCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.statusCmd(fmt.Sprintf("Error marking as spam: %s", msg.mail.Subject))
+		}
+
+		m.inspect.list.RemoveItem(msg.idx)
+		m.removeMail(msg.mail.ID)
+		return m, m.statusCmd(fmt.Sprintf("Marked as spam: %s", msg.mail.Subject))
+
 	case statusMsg:
 		updatedModel, cmd := m.list.Update(m.list.list.NewStatusMessage(msg.text))
 		if updatedList, ok := updatedModel.(mailList); ok {
@@ -362,26 +561,41 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.KeyMsg:
-		if m.state == ready {
+		switch m.state {
+		case ready:
 			updatedModel, cmd := m.list.Update(msg)
 			if updatedList, ok := updatedModel.(mailList); ok {
 				m.list = updatedList
 			}
 			cmds = append(cmds, cmd)
 			return m, tea.Batch(cmds...)
-		}
-		if m.state == loading {
+		case inspecting:
+			updatedModel, cmd := m.inspect.Update(msg)
+			if updatedInspect, ok := updatedModel.(inspectModel); ok {
+				m.inspect = updatedInspect
+			}
+			cmds = append(cmds, cmd)
+			return m, tea.Batch(cmds...)
+		case loading:
 			if msg.String() == "q" || msg.String() == "ctrl+c" {
 				return m, tea.Quit
 			}
 		}
 
 	default:
-		if m.state == loading {
+		switch m.state {
+		case loading:
 			_, cmd := m.progress.Update(msg)
 			cmds = append(cmds, cmd)
 			return m, tea.Batch(cmds...)
-		} else {
+		case inspecting:
+			updatedModel, cmd := m.inspect.Update(msg)
+			if updatedInspect, ok := updatedModel.(inspectModel); ok {
+				m.inspect = updatedInspect
+			}
+			cmds = append(cmds, cmd)
+			return m, tea.Batch(cmds...)
+		default:
 			updatedModel, cmd := m.list.Update(msg)
 			if updatedList, ok := updatedModel.(mailList); ok {
 				m.list = updatedList
@@ -395,10 +609,14 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *rootModel) View() string {
-	if m.state == loading {
+	switch m.state {
+	case loading:
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.progress.View())
+	case inspecting:
+		return m.inspect.View()
+	default:
+		return m.list.View()
 	}
-	return m.list.View()
 }
 
 func (m *rootModel) statusCmd(text string) tea.Cmd {
@@ -415,4 +633,13 @@ func (m *rootModel) handleUnsubscribeError(mail inbox.MailingList, err error) te
 		msg = fmt.Sprintf("Error unsubscribing from %s: %s", mail.From, err)
 	}
 	return m.statusCmd(msg)
+}
+
+func (m *rootModel) removeMail(id string) {
+	for i, mail := range m.mails {
+		if mail.ID == id {
+			m.mails = append(m.mails[:i], m.mails[i+1:]...)
+			return
+		}
+	}
 }

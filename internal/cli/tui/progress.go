@@ -11,7 +11,7 @@ import (
 const (
 	maxWidth = 80
 
-	helpStringTemplate = "You have approximately (%d) mails alongs its submessages. Fetching all of'em to look for mailing list"
+	helpStringTemplate = "You have approximately (%d) mails along its submessages."
 )
 
 type progressMsg int64

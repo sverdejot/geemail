@@ -1,12 +1,22 @@
 [tools]
 go = "latest"
 golangci-lint = "latest"
+goreleaser = "latest"
+gitversion = "latest"
+actionlint = "latest"
 
 [settings]
 experimental = true
 auto_install = true
 
 [tasks]
-lint = ["golangci-lint run ./..."]
+lint = ["golangci-lint run ./...", "goreleaser check", "actionlint"]
 deps = ["go mod tidy", "go mod vendor"]
 format = ["golangci-lint fmt ./..."]
+tag = ["git tag v$(gitversion -config .gitversion.yml -showvariable MajorMinorPatch)"]
+
+[tasks.snapshot]
+run = "goreleaser release --snapshot"
+
+[tasks.release]
+run = "goreleaser release --clean"

@@ -1,0 +1,51 @@
+version: 2
+project_name: geemail
+
+builds:
+  - id: geemail
+    main: ./cmd/geemail/main.go
+    binary: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - "-s -w -X github.com/sverdejot/geemail/internal/cli/version={{ .Version }}"
+
+archives:
+  - id: geemail
+    formats: 
+      - tar.gz 
+    format_overrides:
+      - goos: windows
+        formats: 
+          - zip
+    files:
+      - README.md
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+    include:
+      - '^feat:'
+      - '^fix:'
+      - '^perf:'
+      - '^refactor:'
+      - '^BREAKING CHANGE'
+  use: git
+
+release:
+  github:
+    owner: sverdejot
+    name: geemail
+
+snapshot:
+  version_template: "{{ .Version }}-SNAPSHOT"

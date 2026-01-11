@@ -16,7 +16,7 @@ lint = ["golangci-lint run ./...", "goreleaser check", "actionlint"]
 deps = ["go mod tidy", "go mod vendor"]
 format = ["golangci-lint fmt ./..."]
 snapshot = "goreleaser release --snapshot"
-dist = "aws s3 cp dist/install.sh s3://${S3_BUCKET}/${DIST_FOLDER}/install.sh --region ${AWS_REGION}"
+dist = "aws s3 cp build/install.sh s3://${S3_BUCKET}/${DIST_FOLDER}/install.sh --region ${AWS_REGION}"
 tag = "echo v$(gitversion -config .gitversion.yml -showvariable MajorMinorPatch)"
 
 [tasks.check-tag]

@@ -1,0 +1,26 @@
+name: dist. install script
+
+on:
+  push:
+    paths:
+      - dist/install.sh
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  upload-to-s3:
+    runs-on: ubuntu-latest
+    env:
+      DIST_FOLDER: geemail
+      AWS_REGION: eu-south-2
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - run: mise dist

@@ -15,7 +15,6 @@ A terminal-based utility written in Go to help you manage and reduce unread emai
 - [About](#about)
 - [Features](#features)
 - [Installation](#installation)
-- [Usage](#usage)
 
 ---
 
@@ -42,17 +41,18 @@ Use cases include:
 
 ## Installation
 
-Clone the repository and build the tool using Go.
+First of all, I cannot distribute an application embedding OAauth secrets into it, its not safe (although Google says so). Moreover, there's a per-project-limit on how many requests can be done to the Gmail API, so it's not realistic to have a single project on a public, OSS project. Thus, I'm leaving you [here](https://developers.google.com/workspace/gmail/api/quickstart/go#set_up_your_environment) the documentation about how to generate your own Google OAuth application so it's also safe for you to play around with this project. Once you have the application and `client_secret.json` generated:
+
+1. Export the credentials as an env var
 
 ```bash
-# Clone the repository
-git clone https://github.com/sverdejot/geemail.git
-cd geemail
+export GEEMAIL_API_CREDENTIALS='<content of the json file>'
+```
 
-# Download dependencies and build
-go mod download
-go build ./cmd/geemail
+2. Install `geemail`
 
-## Usage
+```bash
+curl -fSL https://assets.sverdejot.dev/geemail/install.sh | sh -
+```
 
-TBD
+3. Run `geemail` in your terminal

@@ -5,6 +5,7 @@ goreleaser = "latest"
 gitversion = "latest"
 actionlint = "latest"
 aws-cli = "latest"
+gh = "latest"
 
 [settings]
 experimental = true
@@ -14,8 +15,14 @@ auto_install = true
 lint = ["golangci-lint run ./...", "goreleaser check", "actionlint"]
 deps = ["go mod tidy", "go mod vendor"]
 format = ["golangci-lint fmt ./..."]
-tag = ["git tag v$(gitversion -config .gitversion.yml -showvariable MajorMinorPatch)"]
 snapshot = "goreleaser release --snapshot"
-release = "goreleaser release --clean"
 dist = "aws s3 cp dist/install.sh s3://${S3_BUCKET}/${DIST_FOLDER}/install.sh --region ${AWS_REGION}"
+tag = "echo v$(gitversion -config .gitversion.yml -showvariable MajorMinorPatch)"
 
+[tasks.check-tag]
+depends = ["tag"]
+run = "git tag $(mise r tag -q) 2>/dev/null || true"
+
+[tasks.release]
+depends = ["check-tag"]
+run = "gh release view $(mise r tag -q) &>/dev/null || { git push --tags && goreleaser release --clean; }"

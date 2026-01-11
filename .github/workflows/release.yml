@@ -18,8 +18,6 @@ jobs:
           fetch-depth: 0
       - uses: jdx/mise-action@v3
       - run: mise lint
-      - run: mise tag
-      - run: git push --tags
       - env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise release

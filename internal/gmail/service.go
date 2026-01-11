@@ -25,6 +25,7 @@ const (
 	// may be interesting for the user
 	query      = "is:unread has:nouserlabels"
 	inboxLabel = "INBOX"
+    thrashLabel = "THRASH"
 
 	// max query results, set to the API maximum, default is 100
 	maxResults = 500
@@ -35,6 +36,8 @@ const (
 	// quota consumption per operation
 	messagesListQuotaUsage = 5
 	messagesGetQuotaUsage  = 5
+    batchDeleteQuotaUsage  = 50 
+    batchModifyQuotausage  = 50
 )
 
 type MailService struct {
@@ -206,13 +209,39 @@ func (s *MailService) GetUnreadMessageIDs(ctx context.Context) ([]string, error)
 }
 
 func (s *MailService) BulkDelete(ctx context.Context, ids []string) error {
-	defer func() {
-		if err := recover(); err != nil {
-			panic(fmt.Sprintf("%+v\n%+v\n%+v\n%+v", s, ids, ctx, err))
-		}
-	}()
+    if err := s.lim.WaitN(ctx, batchDeleteQuotaUsage); err != nil {
+        return fmt.Errorf("error bulk-deleting %d mails: %w", len(ids), err)
+    }
 	req := s.srv.Users.Messages.
 		BatchDelete(user, &gmail.BatchDeleteMessagesRequest{Ids: ids}).
+		Context(ctx)
+
+	return req.Do()
+}
+
+func (s *MailService) BulkArchive(ctx context.Context, ids []string) error {
+    if err := s.lim.WaitN(ctx, batchModifyQuotausage); err != nil {
+        return fmt.Errorf("error archiving %d mails: %w", len(ids), err)
+    }
+	req := s.srv.Users.Messages.
+		BatchModify(user, &gmail.BatchModifyMessagesRequest{
+			Ids:            ids,
+			RemoveLabelIds: []string{inboxLabel},
+		}).
+		Context(ctx)
+
+	return req.Do()
+}
+
+func (s *MailService) BulkTrash(ctx context.Context, ids []string) error {
+    if err := s.lim.WaitN(ctx, batchModifyQuotausage); err != nil {
+        return fmt.Errorf("error moving %d mails to thrash: %w", len(ids), err)
+    }
+	req := s.srv.Users.Messages.
+		BatchModify(user, &gmail.BatchModifyMessagesRequest{
+			Ids:         ids,
+			AddLabelIds: []string{thrashLabel},
+		}).
 		Context(ctx)
 
 	return req.Do()

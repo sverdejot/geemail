@@ -30,6 +30,16 @@ type deleteRequestMsg struct {
 	idx  int
 }
 
+type archiveRequestMsg struct {
+	mail inbox.MailingList
+	idx  int
+}
+
+type trashRequestMsg struct {
+	mail inbox.MailingList
+	idx  int
+}
+
 // Result messages - emitted after async operations complete
 type unsubscribeCompleteMsg struct {
 	mail inbox.MailingList
@@ -38,6 +48,18 @@ type unsubscribeCompleteMsg struct {
 }
 
 type deleteCompleteMsg struct {
+	mail inbox.MailingList
+	idx  int
+	err  error
+}
+
+type archiveCompleteMsg struct {
+	mail inbox.MailingList
+	idx  int
+	err  error
+}
+
+type trashCompleteMsg struct {
 	mail inbox.MailingList
 	idx  int
 	err  error

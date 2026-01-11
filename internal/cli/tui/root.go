@@ -226,6 +226,70 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.list.RemoveItem(msg.idx)
 		return m, m.statusCmd(fmt.Sprintf("Deleted (%d) mails from %s", msg.mail.TotalUnreads, msg.mail.From))
 
+	case archiveRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would archive (%d) mails from %s", msg.mail.TotalUnreads, msg.mail.From))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "archive"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkArchive(m.ctx, msg.mail.UnreadMessagesIDs)
+			return archiveCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case archiveCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.statusCmd(fmt.Sprintf("Error archiving (%d) mails from %s. Please, try again later.", msg.mail.TotalUnreads, msg.mail.From))
+		}
+
+		m.list.list.RemoveItem(msg.idx)
+		return m, m.statusCmd(fmt.Sprintf("Archived (%d) mails from %s", msg.mail.TotalUnreads, msg.mail.From))
+
+	case trashRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would trash (%d) mails from %s", msg.mail.TotalUnreads, msg.mail.From))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "trash"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkTrash(m.ctx, msg.mail.UnreadMessagesIDs)
+			return trashCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case trashCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.statusCmd(fmt.Sprintf("Error trashing (%d) mails from %s. Please, try again later.", msg.mail.TotalUnreads, msg.mail.From))
+		}
+
+		m.list.list.RemoveItem(msg.idx)
+		return m, m.statusCmd(fmt.Sprintf("Trashed (%d) mails from %s", msg.mail.TotalUnreads, msg.mail.From))
+
 	case statusMsg:
 		updatedModel, cmd := m.list.Update(m.list.list.NewStatusMessage(msg.text))
 		if updatedList, ok := updatedModel.(mailList); ok {

@@ -27,12 +27,16 @@ func NewModel(mails []inbox.MailingList) mailList {
 		return []key.Binding{
 			unsubscribe,
 			deleteAll,
+			archiveAll,
+			trashAll,
 		}
 	}
 	mailingList.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			unsubscribe,
 			deleteAll,
+			archiveAll,
+			trashAll,
 			toggleHelpMenu,
 		}
 	}
@@ -67,6 +71,10 @@ func (m mailList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.handleUnsubscribe()...)
 		case key.Matches(msg, deleteAll):
 			cmds = append(cmds, m.handleDeleteAll()...)
+		case key.Matches(msg, archiveAll):
+			cmds = append(cmds, m.handleArchiveAll()...)
+		case key.Matches(msg, trashAll):
+			cmds = append(cmds, m.handleTrashAll()...)
 		}
 	}
 
@@ -102,6 +110,38 @@ func (m *mailList) handleDeleteAll() []tea.Cmd {
 	return []tea.Cmd{
 		func() tea.Msg {
 			return deleteRequestMsg{
+				mail: mail,
+				idx:  m.list.Index(),
+			}
+		},
+	}
+}
+
+func (m *mailList) handleArchiveAll() []tea.Cmd {
+	mail, ok := m.getSelectedMail()
+	if !ok {
+		return nil
+	}
+
+	return []tea.Cmd{
+		func() tea.Msg {
+			return archiveRequestMsg{
+				mail: mail,
+				idx:  m.list.Index(),
+			}
+		},
+	}
+}
+
+func (m *mailList) handleTrashAll() []tea.Cmd {
+	mail, ok := m.getSelectedMail()
+	if !ok {
+		return nil
+	}
+
+	return []tea.Cmd{
+		func() tea.Msg {
+			return trashRequestMsg{
 				mail: mail,
 				idx:  m.list.Index(),
 			}

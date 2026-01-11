@@ -6,7 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/sverdejot/geemail/internal/core"
+	"github.com/sverdejot/geemail/internal/gmail"
+	"github.com/sverdejot/geemail/internal/inbox"
 )
 
 type state int
@@ -17,26 +18,28 @@ const (
 )
 
 type rootModel struct {
-	state    state
-	progress *mailLoadingProgress
-	list     mailList
-	ctx      context.Context
-	svc      *core.MailService
-	mails    []core.RawMail
-	inc      chan struct{}
-	width    int
-	height   int
-    dryRun   bool
+	state               state
+	progress            *mailLoadingProgress
+	list                mailList
+	ctx                 context.Context
+	svc                 *gmail.MailService
+	mails               []inbox.RawMail
+	inc                 chan struct{}
+	width               int
+	height              int
+	dryRun              bool
+	operationInProgress bool
+	currentOperation    string
 }
 
-func NewRoot(ctx context.Context, svc *core.MailService, dryRun bool) (*rootModel, error) {
+func NewRoot(ctx context.Context, svc *gmail.MailService, dryRun bool) (*rootModel, error) {
 	total, err := svc.GetTotalUnreads(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get total unread messages: %w", err)
 	}
 
 	inc := make(chan struct{})
-	mails := make([]core.RawMail, 0)
+	mails := make([]inbox.RawMail, 0)
 
 	pg := NewProgressModel(total, inc)
 
@@ -47,7 +50,7 @@ func NewRoot(ctx context.Context, svc *core.MailService, dryRun bool) (*rootMode
 		svc:      svc,
 		mails:    mails,
 		inc:      inc,
-        dryRun:   dryRun,
+		dryRun:   dryRun,
 	}, nil
 }
 
@@ -109,8 +112,8 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case endMsg:
 		if m.state == loading {
-			rawMailList := core.RawMailList(m.mails)
-			mailingLists := core.GetMailingList(rawMailList)
+			rawMailList := inbox.RawMailList(m.mails)
+			mailingLists := inbox.GetMailingList(rawMailList)
 
 			m.list = NewModel(mailingLists)
 			if m.width > 0 && m.height > 0 {
@@ -126,6 +129,87 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 			return m, tea.Batch(cmds...)
 		}
+
+	case unsubscribeRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would unsubscribe from %s", msg.mail.From))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "unsubscribe"
+
+		return m, func() tea.Msg {
+			err := msg.mail.Unsubscribe(m.ctx)
+			return unsubscribeCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case unsubscribeCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.handleUnsubscribeError(msg.mail, msg.err)
+		}
+
+		// Unsubscribe succeeded, now delete the emails
+		m.operationInProgress = true
+		m.currentOperation = "delete"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkDelete(m.ctx, msg.mail.UnreadMessagesIDs)
+			return deleteCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case deleteRequestMsg:
+		if m.operationInProgress {
+			return m, m.statusCmd(fmt.Sprintf("Operation '%s' already in progress...", m.currentOperation))
+		}
+
+		if m.dryRun {
+			return m, m.statusCmd(fmt.Sprintf("[DRY RUN] Would delete (%d) mails from %s", msg.mail.TotalUnreads, msg.mail.From))
+		}
+
+		m.operationInProgress = true
+		m.currentOperation = "delete"
+
+		return m, func() tea.Msg {
+			err := m.svc.BulkDelete(m.ctx, msg.mail.UnreadMessagesIDs)
+			return deleteCompleteMsg{
+				mail: msg.mail,
+				idx:  msg.idx,
+				err:  err,
+			}
+		}
+
+	case deleteCompleteMsg:
+		m.operationInProgress = false
+		m.currentOperation = ""
+
+		if msg.err != nil {
+			return m, m.statusCmd(fmt.Sprintf("Error deleting (%d) mails from %s. Please, try again later.", msg.mail.TotalUnreads, msg.mail.From))
+		}
+
+		m.list.list.RemoveItem(msg.idx)
+		return m, m.statusCmd(fmt.Sprintf("Deleted (%d) mails from %s", msg.mail.TotalUnreads, msg.mail.From))
+
+	case statusMsg:
+		updatedModel, cmd := m.list.Update(m.list.list.NewStatusMessage(msg.text))
+		if updatedList, ok := updatedModel.(mailList); ok {
+			m.list = updatedList
+		}
+		return m, cmd
 
 	case tea.KeyMsg:
 		if m.state == ready {
@@ -165,4 +249,20 @@ func (m *rootModel) View() string {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.progress.View())
 	}
 	return m.list.View()
+}
+
+func (m *rootModel) statusCmd(text string) tea.Cmd {
+	return func() tea.Msg {
+		return statusMsg{text: text}
+	}
+}
+
+func (m *rootModel) handleUnsubscribeError(mail inbox.MailingList, err error) tea.Cmd {
+	var msg string
+	if err == inbox.ErrNoUnsubscriber {
+		msg = fmt.Sprintf("%s has no one-click unsubscribe feature", mail.From)
+	} else {
+		msg = fmt.Sprintf("Error unsubscribing from %s: %s", mail.From, err)
+	}
+	return m.statusCmd(msg)
 }

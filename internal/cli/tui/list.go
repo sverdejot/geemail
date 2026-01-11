@@ -4,17 +4,20 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/sverdejot/geemail/internal/core"
+	"github.com/sverdejot/geemail/internal/inbox"
 )
 
 type mailList struct {
 	list list.Model
 }
 
-func NewModel(mails []core.MailingList) mailList {
-	items := make([]list.Item, len(mails))
-	for i, m := range mails {
-		items[i] = m
+func NewModel(mails []inbox.MailingList) mailList {
+	items := make([]list.Item, 0, len(mails))
+	for _, m := range mails {
+		if !m.UnsubscribeAvailable() {
+			continue
+		}
+		items = append(items, m)
 	}
 
 	mailingList := list.New(items, list.NewDefaultDelegate(), 0, 0)
@@ -23,11 +26,13 @@ func NewModel(mails []core.MailingList) mailList {
 	mailingList.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			unsubscribe,
+			deleteAll,
 		}
 	}
 	mailingList.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			unsubscribe,
+			deleteAll,
 			toggleHelpMenu,
 		}
 	}
@@ -59,11 +64,9 @@ func (m mailList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list.SetShowHelp(!m.list.ShowHelp())
 			return m, nil
 		case key.Matches(msg, unsubscribe):
-			mail, ok := m.list.SelectedItem().(core.MailingList)
-			if !ok {
-				break
-			}
-			cmds = append(cmds, m.list.NewStatusMessage("Unsubcribed from "+mail.From))
+			cmds = append(cmds, m.handleUnsubscribe()...)
+		case key.Matches(msg, deleteAll):
+			cmds = append(cmds, m.handleDeleteAll()...)
 		}
 	}
 
@@ -72,6 +75,43 @@ func (m mailList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m *mailList) handleUnsubscribe() []tea.Cmd {
+	mail, ok := m.getSelectedMail()
+	if !ok {
+		return nil
+	}
+
+	return []tea.Cmd{
+		func() tea.Msg {
+			return unsubscribeRequestMsg{
+				mail: mail,
+				idx:  m.list.Index(),
+			}
+		},
+	}
+}
+
+func (m *mailList) handleDeleteAll() []tea.Cmd {
+	mail, ok := m.getSelectedMail()
+	if !ok {
+		return nil
+	}
+
+	return []tea.Cmd{
+		func() tea.Msg {
+			return deleteRequestMsg{
+				mail: mail,
+				idx:  m.list.Index(),
+			}
+		},
+	}
+}
+
+func (m *mailList) getSelectedMail() (inbox.MailingList, bool) {
+	mail, ok := m.list.SelectedItem().(inbox.MailingList)
+	return mail, ok
 }
 
 func (m mailList) View() string {

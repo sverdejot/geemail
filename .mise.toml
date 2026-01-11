@@ -9,3 +9,4 @@ auto_install = true
 [tasks]
 lint = ["golangci-lint run ./..."]
 deps = ["go mod tidy", "go mod vendor"]
+format = ["golangci-lint fmt ./..."]

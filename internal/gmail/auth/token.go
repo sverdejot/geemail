@@ -1,4 +1,4 @@
-package token
+package auth
 
 import (
 	"context"
@@ -52,9 +52,9 @@ func NewHTTPClient(ctx context.Context) (*http.Client, error) {
 func getTokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 
-    if err := open(authURL); err != nil {
-        log.Fatalf("cannot open URL to redeem token: %v", err)
-    }
+	if err := open(authURL); err != nil {
+		log.Fatalf("cannot open URL to redeem token: %v", err)
+	}
 
 	authCode := callback()
 	tok, err := config.Exchange(ctx, authCode)
@@ -75,7 +75,7 @@ func tokenFromEnv() (*oauth2.Token, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot open file: %w", err)
 	}
-    defer f.Close() //nolint:errcheck
+	defer f.Close() //nolint:errcheck
 	var token oauth2.Token
 	if err := json.NewDecoder(f).Decode(&token); err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func saveToken(token *oauth2.Token) error {
 	if err != nil {
 		return fmt.Errorf("cannot open file: %w", err)
 	}
-    defer f.Close() //nolint:errcheck //nolint:errcheck
+	defer f.Close() //nolint:errcheck
 	return json.NewEncoder(f).Encode(token)
 }
 

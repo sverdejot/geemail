@@ -11,7 +11,7 @@ import (
 const (
 	maxWidth = 80
 
-    helpStringTemplate = "You have approximately (%d) mails alongs its submessages. Fetching all of'em to look for mailing list"
+	helpStringTemplate = "You have approximately (%d) mails alongs its submessages. Fetching all of'em to look for mailing list"
 )
 
 type progressMsg int64
@@ -77,10 +77,10 @@ func (m *mailLoadingProgress) progressCmd() tea.Cmd {
 }
 
 func (m *mailLoadingProgress) View() string {
-    return lipgloss.JoinVertical(
-        lipgloss.Center, 
-        titleText + "\n", 
-        fmt.Sprintf("(%d) ", m.current) + m.progress.View() + "\n",
-        fmt.Sprintf(helpStringTemplate, m.total),
-    )
+	return lipgloss.JoinVertical(
+		lipgloss.Center,
+		titleText+"\n",
+		fmt.Sprintf("(%d) ", m.current)+m.progress.View()+"\n",
+		fmt.Sprintf(helpStringTemplate, m.total),
+	)
 }

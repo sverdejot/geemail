@@ -1,4 +1,4 @@
-package core
+package gmail
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/sverdejot/geemail/internal/inbox"
 	"golang.org/x/time/rate"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
@@ -48,7 +49,7 @@ func NewMessageService(ctx context.Context, client *http.Client) (*MailService, 
 	}
 
 	lim := rate.NewLimiter(
-        rate.Limit(apiQuotaUsagePerSec), apiQuotaUsagePerSec,
+		rate.Limit(apiQuotaUsagePerSec), apiQuotaUsagePerSec,
 	)
 
 	return &MailService{
@@ -57,7 +58,7 @@ func NewMessageService(ctx context.Context, client *http.Client) (*MailService, 
 	}, nil
 }
 
-func (s *MailService) StreamUnreadMessages(ctx context.Context) (chan RawMail, error) {
+func (s *MailService) StreamUnreadMessages(ctx context.Context) (chan inbox.RawMail, error) {
 	if err := s.lim.WaitN(ctx, messagesListQuotaUsage); err != nil {
 		return nil, err
 	}
@@ -70,7 +71,7 @@ func (s *MailService) StreamUnreadMessages(ctx context.Context) (chan RawMail, e
 	var wg sync.WaitGroup
 	wg.Add(poolSize)
 	jobs := make(chan string, poolSize)
-	results := make(chan RawMail, poolSize)
+	results := make(chan inbox.RawMail, poolSize)
 
 	for range poolSize {
 		go s.getMessageWorker(ctx, &wg, jobs, results)
@@ -91,13 +92,13 @@ func (s *MailService) StreamUnreadMessages(ctx context.Context) (chan RawMail, e
 	return results, nil
 }
 
-func (s *MailService) GetUnreadMessages(ctx context.Context) ([]RawMail, error) {
+func (s *MailService) GetUnreadMessages(ctx context.Context) ([]inbox.RawMail, error) {
 	results, err := s.StreamUnreadMessages(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	contents := make([]RawMail, 0)
+	contents := make([]inbox.RawMail, 0)
 	for msg := range results {
 		contents = append(contents, msg)
 	}
@@ -109,7 +110,7 @@ func (s *MailService) getMessageWorker(
 	ctx context.Context,
 	wg *sync.WaitGroup,
 	jobs <-chan string,
-	results chan<- RawMail,
+	results chan<- inbox.RawMail,
 ) {
 	defer wg.Done()
 
@@ -130,12 +131,12 @@ func (s *MailService) getMessageWorker(
 				Do()
 
 			if err == nil && msg.Id != "" {
-				mail, err := NewRawMail(
-					WithID(msg),
-					WithSender(msg),
-					WithSnippet(msg),
-					WithSubject(msg),
-					WithHeaders(msg),
+				mail, err := inbox.NewRawMail(
+					inbox.WithID(msg),
+					inbox.WithSender(msg),
+					inbox.WithSnippet(msg),
+					inbox.WithSubject(msg),
+					inbox.WithHeaders(msg),
 				)
 				if err != nil {
 					// something about the mail cannot be parsed, continue
@@ -202,6 +203,19 @@ func (s *MailService) GetUnreadMessageIDs(ctx context.Context) ([]string, error)
 	}
 
 	return mailIDs, nil
+}
+
+func (s *MailService) BulkDelete(ctx context.Context, ids []string) error {
+	defer func() {
+		if err := recover(); err != nil {
+			panic(fmt.Sprintf("%+v\n%+v\n%+v\n%+v", s, ids, ctx, err))
+		}
+	}()
+	req := s.srv.Users.Messages.
+		BatchDelete(user, &gmail.BatchDeleteMessagesRequest{Ids: ids}).
+		Context(ctx)
+
+	return req.Do()
 }
 
 func getIds(msgs []*gmail.Message) []string {

@@ -1,4 +1,4 @@
-package token
+package auth
 
 import (
 	_ "embed"
@@ -20,12 +20,12 @@ func callback() string {
 
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-            go srv.Shutdown(r.Context()) //nolint:errcheck
+			go srv.Shutdown(r.Context()) //nolint:errcheck
 		}()
 
 		code = r.URL.Query().Get("code")
 		w.WriteHeader(http.StatusOK)
-        w.Write(callbackPage) //nolint:errcheck
+		w.Write(callbackPage) //nolint:errcheck
 	})
 
 	mux.Handle("/callback", fn)

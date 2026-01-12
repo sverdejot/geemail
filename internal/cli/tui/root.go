@@ -145,8 +145,9 @@ func (m *rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state == loading {
 			rawMailList := inbox.RawMailList(m.mails)
 			mailingLists := inbox.GetMailingList(rawMailList)
+			allMailsGrouped := inbox.GetAllGroupedBySender(rawMailList)
 
-			m.list = NewModel(mailingLists)
+			m.list = NewModel(mailingLists, allMailsGrouped)
 			if m.width > 0 && m.height > 0 {
 				updatedModel, sizeCmd := m.list.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 				if updatedList, ok := updatedModel.(mailList); ok {

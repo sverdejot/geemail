@@ -43,6 +43,11 @@ var (
 		key.WithHelp("esc", "go back"),
 	)
 
+	toggleViewMode = key.NewBinding(
+		key.WithKeys("m"),
+		key.WithHelp("m", "toggle view mode"),
+	)
+
 	toggleHelpMenu = key.NewBinding(
 		key.WithKeys("H"),
 		key.WithHelp("H", "toggle help"),

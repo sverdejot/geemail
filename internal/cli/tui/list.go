@@ -7,23 +7,27 @@ import (
 	"github.com/sverdejot/geemail/internal/inbox"
 )
 
+type viewMode int
+
+const (
+	mailingListsOnly viewMode = iota
+	allMailGrouped
+)
+
 type mailList struct {
-	list list.Model
+	list            list.Model
+	viewMode        viewMode
+	mailingLists    []inbox.MailingList
+	allMailsGrouped []inbox.MailingList
 }
 
-func NewModel(mails []inbox.MailingList) mailList {
-	items := make([]list.Item, 0, len(mails))
-	for _, m := range mails {
-		if !m.UnsubscribeAvailable() {
-			continue
-		}
-		items = append(items, m)
-	}
+func NewModel(mailingLists, allMailsGrouped []inbox.MailingList) mailList {
+	items := toListItems(mailingLists)
 
-	mailingList := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	mailingList.Title = "Mailing lists"
-	mailingList.Styles.Title = titleStyle
-	mailingList.AdditionalShortHelpKeys = func() []key.Binding {
+	listModel := list.New(items, list.NewDefaultDelegate(), 0, 0)
+	listModel.Title = "Mailing lists"
+	listModel.Styles.Title = titleStyle
+	listModel.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			unsubscribe,
 			deleteAll,
@@ -32,9 +36,10 @@ func NewModel(mails []inbox.MailingList) mailList {
 			markRead,
 			markSpam,
 			inspect,
+			toggleViewMode,
 		}
 	}
-	mailingList.AdditionalFullHelpKeys = func() []key.Binding {
+	listModel.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			unsubscribe,
 			deleteAll,
@@ -43,13 +48,25 @@ func NewModel(mails []inbox.MailingList) mailList {
 			markRead,
 			markSpam,
 			inspect,
+			toggleViewMode,
 			toggleHelpMenu,
 		}
 	}
 
 	return mailList{
-		list: mailingList,
+		list:            listModel,
+		viewMode:        mailingListsOnly,
+		mailingLists:    mailingLists,
+		allMailsGrouped: allMailsGrouped,
 	}
+}
+
+func toListItems(mails []inbox.MailingList) []list.Item {
+	items := make([]list.Item, 0, len(mails))
+	for _, m := range mails {
+		items = append(items, m)
+	}
+	return items
 }
 
 func (m mailList) Init() tea.Cmd {
@@ -87,6 +104,9 @@ func (m mailList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.handleMarkSpam()...)
 		case key.Matches(msg, inspect):
 			cmds = append(cmds, m.handleInspect()...)
+		case key.Matches(msg, toggleViewMode):
+			m.toggleView()
+			return m, nil
 		}
 	}
 
@@ -209,6 +229,18 @@ func (m *mailList) handleInspect() []tea.Cmd {
 func (m *mailList) getSelectedMail() (inbox.MailingList, bool) {
 	mail, ok := m.list.SelectedItem().(inbox.MailingList)
 	return mail, ok
+}
+
+func (m *mailList) toggleView() {
+	if m.viewMode == mailingListsOnly {
+		m.viewMode = allMailGrouped
+		m.list.Title = "All mail (grouped by sender)"
+		m.list.SetItems(toListItems(m.allMailsGrouped))
+	} else {
+		m.viewMode = mailingListsOnly
+		m.list.Title = "Mailing lists"
+		m.list.SetItems(toListItems(m.mailingLists))
+	}
 }
 
 func (m mailList) View() string {

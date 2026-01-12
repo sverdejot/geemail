@@ -19,6 +19,7 @@ type MailingList struct {
 	TotalUnreads      int
 	UnreadMessagesIDs []string
 	Unsubscriber      *unsubscriber
+	IsMailingList     bool
 }
 
 func GetMailingList(l RawMailList) []MailingList {
@@ -44,9 +45,43 @@ func GetMailingList(l RawMailList) []MailingList {
 				TotalUnreads:      total,
 				UnreadMessagesIDs: ids,
 				Unsubscriber:      unsubscriber,
+				IsMailingList:     true,
 			})
 		}
 		total = 0
+	}
+	sortAscendingByTotalUnreads(lists)
+	return lists
+}
+
+func GetAllGroupedBySender(l RawMailList) []MailingList {
+	lists := make([]MailingList, 0)
+	mails := l.GroupBySender()
+
+	for s, sm := range mails {
+		ids := make([]string, 0, len(sm))
+		var unsubscriber *unsubscriber
+		var hasMailingList bool
+
+		for _, rm := range sm {
+			ids = append(ids, rm.ID)
+			if isMailingList(rm) {
+				hasMailingList = true
+				if unsubscriber == nil {
+					unsubscriber = NewOneClickUnsubscriber(rm.Headers)
+				}
+			}
+		}
+
+		if len(ids) > 0 {
+			lists = append(lists, MailingList{
+				From:              s,
+				TotalUnreads:      len(ids),
+				UnreadMessagesIDs: ids,
+				Unsubscriber:      unsubscriber,
+				IsMailingList:     hasMailingList,
+			})
+		}
 	}
 	sortAscendingByTotalUnreads(lists)
 	return lists
@@ -72,7 +107,7 @@ func (rm MailingList) FilterValue() string {
 }
 
 func (rm MailingList) Title() string {
-	if rm.Unsubscriber != nil {
+	if rm.IsMailingList {
 		return unsubscribeListElemstyle.Render(rm.From)
 	}
 	return rm.From

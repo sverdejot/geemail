@@ -8,6 +8,10 @@
 
 A terminal-based utility written in Go to help you manage and reduce unread emails in your Gmail inbox programmatically.
 
+<p align="center">
+    <img src="https://assets.sverdejot.dev/geemail/demo.gif"/>
+</p>
+
 ---
 
 ## Table of Contents

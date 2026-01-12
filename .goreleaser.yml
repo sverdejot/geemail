@@ -29,17 +29,6 @@ archives:
 
 changelog:
   sort: asc
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
-    include:
-      - '^feat:'
-      - '^fix:'
-      - '^perf:'
-      - '^refactor:'
-      - '^BREAKING CHANGE'
   use: git
 
 release:
